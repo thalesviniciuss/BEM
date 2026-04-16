@@ -109,6 +109,72 @@ Output ***SOLVE_FOR_ANY_NUMBER_AIRFOILS(Data d,
 }
 
 
+double **DR(int AIRFOIL_NUMBER, int *sizes, double **radius){
+
+
+    double **RADIUS_WITH_ZERO;
+    double **dr;
+
+    RADIUS_WITH_ZERO = malloc(AIRFOIL_NUMBER * sizeof(double *));
+    dr = malloc(AIRFOIL_NUMBER * sizeof(double *));
+
+    for (int i = 0; i < AIRFOIL_NUMBER; i++){
+
+        if (i == 0){
+            RADIUS_WITH_ZERO[i] = malloc((sizes[i]+1) * sizeof(double));
+        } else {
+
+            RADIUS_WITH_ZERO[i] = malloc((sizes[i]) * sizeof(double));
+        }
+    }
+
+    for (int i = 0; i < AIRFOIL_NUMBER; i++){
+
+        dr[i] = malloc(sizes[i] * sizeof(double));
+
+    }
+
+
+    RADIUS_WITH_ZERO[0][0] = 0;
+
+    int k = 0;
+
+    for (int j = 0; j < AIRFOIL_NUMBER; j++){ 
+
+        for (int i = 0; i < sizes[j]; i++) {
+
+            if (i == 0){
+
+                RADIUS_WITH_ZERO[j][i+1] = radius[j][k];
+
+            } else {
+
+                RADIUS_WITH_ZERO[j][i] = radius[j][k];
+            }
+
+            if (i < sizes[j]-1){
+                k++;
+            }
+        }
+    }
+
+
+
+
+    double RADIUS_WITH_ZERO[sizes[0]+1];
+    RADIUS_WITH_ZERO[0] = 0;
+
+    double dr[sizes[0]];
+
+    for (int i = 0; i < sizes[0]; i++) {
+
+        RADIUS_WITH_ZERO[i+1] = radius[0][i]; 
+
+    }
+}
+
+
+
 int main() {
 
 

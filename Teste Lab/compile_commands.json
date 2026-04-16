@@ -1,0 +1,7 @@
+[
+  {
+    "directory": "C:/Users/Thales/SEU_PROJETO",
+    "command": "C:/ProgramData/mingw64/mingw64/bin/gcc.exe -xc -std=c11 -IC:/Users/Thales/PLplot/include -IC:/Users/Thales/PLplot/build/include -c main.c",
+    "file": "main.c"
+  }
+]
