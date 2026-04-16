@@ -1,0 +1,20 @@
+LOAD seu_aerofolio.dat
+
+PPAR
+N 220
+
+PANE
+
+OPER
+VISC 1e4
+ITER 250
+VPAR
+N 3
+
+PACC
+polar_Re1e4_N3.txt
+
+ASEQ -10 15 0.5
+
+PACC
+QUIT
