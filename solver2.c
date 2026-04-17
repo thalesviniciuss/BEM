@@ -8,6 +8,13 @@
 #include <math.h>
 #include <plplot.h>
 
+typedef struct {
+    double *T;
+    double *M;
+    double *P;
+    double *Cp;
+    double *Ct;
+}  PhysicalQuantities;
 
 void check(Data d, int AIRFOIL_NUMBER, int *sizes, double **radius, double **chord, double **twist){
 
@@ -36,30 +43,27 @@ void check_BEM(Output *sol, int radius_length){
 
 
 void GRAPHIC_NAME(char name[], int size){
-
     printf("DIGITE O NOME DO GRAFICO: ");
     fgets(name, size, stdin);
     name[strcspn(name, "\n")] = '\0';
 }
 
 
-void CREATE_GRAPHICS(char GNAME[]){
-
-    plsdev("svg");
-    snprintf(GNAME, sizeof(GNAME),
-         "%s.svg",
-         GNAME);
-    plsfnam(GNAME);
-    plscolbg(255, 255, 255);
-    plscol0(1, 0, 0, 0);
-    plssub(2, 1);
-    plinit();
-
-
-    PLFLT x[];
-    PLFLT Cp_Graphic[];
-    PLFLT Ct_Graphic[];
-}
+//void CREATE_GRAPHICS(char GNAME[]){
+//    plsdev("svg");
+//    snprintf(GNAME, sizeof(GNAME),
+//         "%s.svg",
+//         GNAME);
+//    plsfnam(GNAME);
+//    plscolbg(255, 255, 255);
+//    plscol0(1, 0, 0, 0);
+//    plssub(2, 1);
+//    plinit();
+//
+//    PLFLT x[];
+//    PLFLT Cp_Graphic[];
+//    PLFLT Ct_Graphic[];
+//}
 
 
 Output ***SOLVE_FOR_ANY_NUMBER_AIRFOILS(Data d, 
@@ -70,7 +74,7 @@ Output ***SOLVE_FOR_ANY_NUMBER_AIRFOILS(Data d,
                                        double mu, 
                                        double *TIP_SPEED_RATIO,
                                        int TSR_SIZE, 
-                                       double OMEGA,
+                                       double *OMEGA,
                                        double R, 
                                        double **twist,
                                        int B, 
@@ -85,8 +89,8 @@ Output ***SOLVE_FOR_ANY_NUMBER_AIRFOILS(Data d,
     Output ***solutions;
     solutions = malloc(TSR_SIZE * sizeof(Output **));
 
-    for (int k = 0; k < AIRFOIL_NUMBER; k++) {
-        solutions[k] = malloc(sizes[k] * sizeof(Output *));
+    for (int k = 0; k < TSR_SIZE; k++) {
+        solutions[k] = malloc(AIRFOIL_NUMBER * sizeof(Output *));
     }
 
     // ESSE EH O LOOP QUE SOLUCIONA PARA CADA AEROFOLIO
@@ -99,7 +103,7 @@ Output ***SOLVE_FOR_ANY_NUMBER_AIRFOILS(Data d,
                     d.airfoils[i].arq_names,
                     sizes[i], rho,
                     mu, TIP_SPEED_RATIO[j],
-                    OMEGA, R, twist[i],
+                    OMEGA[j], R, twist[i],
                     B, chord[i], radius[i],
                     PITCH, coeficients[i]);
         }
@@ -109,9 +113,9 @@ Output ***SOLVE_FOR_ANY_NUMBER_AIRFOILS(Data d,
 }
 
 
+
 double **DR(int AIRFOIL_NUMBER, int *sizes, double **radius){
-
-
+    
     double **RADIUS_WITH_ZERO;
     double **dr;
 
@@ -119,61 +123,153 @@ double **DR(int AIRFOIL_NUMBER, int *sizes, double **radius){
     dr = malloc(AIRFOIL_NUMBER * sizeof(double *));
 
     for (int i = 0; i < AIRFOIL_NUMBER; i++){
-
-        if (i == 0){
-            RADIUS_WITH_ZERO[i] = malloc((sizes[i]+1) * sizeof(double));
-        } else {
-
-            RADIUS_WITH_ZERO[i] = malloc((sizes[i]) * sizeof(double));
-        }
+        RADIUS_WITH_ZERO[i] = malloc((sizes[i]+1) * sizeof(double));
     }
 
     for (int i = 0; i < AIRFOIL_NUMBER; i++){
-
         dr[i] = malloc(sizes[i] * sizeof(double));
-
     }
 
-
     RADIUS_WITH_ZERO[0][0] = 0;
-
-    int k = 0;
+    double LAST_VALUE = 0;
 
     for (int j = 0; j < AIRFOIL_NUMBER; j++){ 
 
         for (int i = 0; i < sizes[j]; i++) {
 
-            if (i == 0){
+            if (i == sizes[j] - 1){
 
-                RADIUS_WITH_ZERO[j][i+1] = radius[j][k];
+                LAST_VALUE = radius[j][i];
 
-            } else {
+                if (j < AIRFOIL_NUMBER - 1){
 
-                RADIUS_WITH_ZERO[j][i] = radius[j][k];
+                    RADIUS_WITH_ZERO[j+1][0] = LAST_VALUE;
+
+                }
             }
 
-            if (i < sizes[j]-1){
-                k++;
+            RADIUS_WITH_ZERO[j][i+1] = radius[j][i];
+        }
+    }
+
+    for (int j = 0; j < AIRFOIL_NUMBER; j++){
+
+        for (int i = 0; i < sizes[j]; i++){
+
+            dr[j][i] = RADIUS_WITH_ZERO[j][i+1] - RADIUS_WITH_ZERO[j][i];
+
+        }
+
+    }
+
+    return dr;
+}
+
+    
+PhysicalQuantities CALCULATE_PHYSICAL_QUANTITIES(int TIP_SPEED_RATIO_VECTOR_SIZE, double *TIP_SPEED_RATIO_VECTOR, int *sizes, Output ***solutions, double rho, double V_INF, double **radius, double **dr, int AIRFOIL_NUMBER, double R){
+
+    PhysicalQuantities Phys;
+
+
+    double **T_s;
+    double **M_s;
+    double *T;
+    double *M;
+    double *P;
+    double *Cp;
+    double *Ct;
+    double *OMEGA;
+    double dT = 0;
+    double dM = 0;
+
+    T = malloc(TIP_SPEED_RATIO_VECTOR_SIZE * sizeof(double));
+    M = malloc(TIP_SPEED_RATIO_VECTOR_SIZE * sizeof(double));
+
+    T_s = malloc(TIP_SPEED_RATIO_VECTOR_SIZE * sizeof(double *));
+    M_s = malloc(TIP_SPEED_RATIO_VECTOR_SIZE * sizeof(double *));
+
+    P = malloc(TIP_SPEED_RATIO_VECTOR_SIZE * sizeof(double));
+    Cp = malloc(TIP_SPEED_RATIO_VECTOR_SIZE * sizeof(double));
+    Ct = malloc(TIP_SPEED_RATIO_VECTOR_SIZE * sizeof(double));
+
+    for (int j = 0; j < TIP_SPEED_RATIO_VECTOR_SIZE; j++){
+
+        T_s[j] = malloc(AIRFOIL_NUMBER * sizeof(double));
+        M_s[j] = malloc(AIRFOIL_NUMBER * sizeof(double));
+    }
+
+    OMEGA = malloc(TIP_SPEED_RATIO_VECTOR_SIZE * sizeof(double));
+
+    for (int i = 0; i < TIP_SPEED_RATIO_VECTOR_SIZE; i++){
+
+        OMEGA[i] =V_INF*TIP_SPEED_RATIO_VECTOR[i]/R; 
+
+    }
+
+     
+
+    for (int k = 0; k < TIP_SPEED_RATIO_VECTOR_SIZE; k++){
+
+        T[k] = 0;
+        M[k] = 0;
+        P[k] = 0;
+        Cp[k] = 0;
+        Ct[k] = 0;
+
+        for (int j = 0; j < AIRFOIL_NUMBER; j++){
+
+            T_s[k][j] = 0;
+            M_s[k][j] = 0;
+
+        }
+    }
+
+
+
+    for (int k = 0; k < TIP_SPEED_RATIO_VECTOR_SIZE; k++){
+
+        for (int j = 0; j < AIRFOIL_NUMBER; j++){
+
+            for (int i = 0; i < sizes[j]; i++){
+
+                dT = 4*M_PI*rho*pow(V_INF, 2)*solutions[k][j][i].a*(1-solutions[k][j][i].a)*solutions[k][j][i].F*dr[j][i]*radius[j][i];
+                dM = 4*M_PI*pow(radius[j][i], 3)*rho*V_INF*OMEGA[k]*(1-solutions[k][j][i].a)*solutions[k][j][i].al*solutions[k][j][i].F*dr[j][i];
+                M_s[k][j] = M_s[k][j] + dM;
+                T_s[k][j] = T_s[k][j] + dT;
+
             }
         }
     }
 
 
 
+    for (int k = 0; k < TIP_SPEED_RATIO_VECTOR_SIZE; k++){
 
-    double RADIUS_WITH_ZERO[sizes[0]+1];
-    RADIUS_WITH_ZERO[0] = 0;
+        for (int j = 0; j < AIRFOIL_NUMBER; j++){
+            T[k] += T_s[k][j];
+            M[k] += M_s[k][j];
 
-    double dr[sizes[0]];
+        }
+    }
 
-    for (int i = 0; i < sizes[0]; i++) {
 
-        RADIUS_WITH_ZERO[i+1] = radius[0][i]; 
+    for (int j = 0; j < TIP_SPEED_RATIO_VECTOR_SIZE; j++){
+
+        P[j] = OMEGA[j]*M[j];
+        Cp[j] = P[j]/(0.5*rho*pow(V_INF, 3)*M_PI*pow(R,2));
+        Ct[j] = T[j]/(0.5*rho*pow(V_INF, 2)*M_PI*pow(R,2));
 
     }
+
+    Phys.T = T;
+    Phys.M = M;
+    Phys.P = P;
+    Phys.Cp = Cp;
+    Phys.Ct = Ct;
+
+    return Phys;
+
 }
-
-
 
 int main() {
 
@@ -266,118 +362,59 @@ int main() {
     }
     
 
-    Output *solution;
+    Output ***solutions;
+    double **dr;
+    PhysicalQuantities Phys;
 
+    int TSR_SIZE = 10;
+    double *OMEGA_VECTOR;
 
-    solution = BEM(d.ARQ_NUMBER, LINE_NUMBER, d.airfoils[0].arq_names, sizes[0], rho, mu, TIP_SPEED_RATIO, OMEGA, R, twist[0], B, chord[0], radius[0], PITCH, coeficients[0]);
-    
-    double T = 0;
-    double M = 0;
-    double dT = 0;
-    double dM = 0;
-    double P = 0;
-    double Cp = 0;
-    double Ct = 0;
+    OMEGA_VECTOR = malloc(TSR_SIZE * sizeof(double));
 
-    double RADIUS_WITH_ZERO[sizes[0]+1];
-    RADIUS_WITH_ZERO[0] = 0;
-
-    double dr[sizes[0]];
-
-    for (int i = 0; i < sizes[0]; i++) {
-
-        RADIUS_WITH_ZERO[i+1] = radius[0][i]; 
-
-    }
-
-    for (int i = 0; i < sizes[0]; i++){
-
-        dr[i] = radius[0][i] - RADIUS_WITH_ZERO[i];
-    }
-
-    for (int i = 0; i < sizes[0]; i++){
-
-        dT = 4*M_PI*rho*pow(V_INF, 2)*solution[i].a*(1-solution[i].a)*solution[i].F*dr[i]*radius[0][i];
-        T = T + dT;
-        dM = 4*M_PI*pow(radius[0][i], 3)*rho*V_INF*OMEGA*(1-solution[i].a)*solution[i].al*solution[i].F*dr[i];
-        M = M + dM;
-    }
-
-
-    P = OMEGA*M;
-    Cp = P/(0.5*rho*pow(V_INF, 3)*M_PI*pow(R,2));
-    Ct = T/(0.5*rho*pow(V_INF, 2)*M_PI*pow(R,2));
-
-
-    printf("\nCHECK POS PROCESS P = %f | Cp = %f | Thrust ou Empuxo = %f | Ct = %f | Momento = %f", P, Cp, T, Ct, M);
-
-    //printf("test test %f", solution[0].a);
-    //check_BEM(solution, radius_length);
-
-    //check(d, AIRFOIL_NUMBER, sizes, radius, chord, twist);
-
-
-
-    // CALCULO PARA O VETOR DE TIP SPEED RATIO
-    //
-    
     double TIP_SPEED_RATIO_VECTOR[10] = {2, 3, 4, 5, 6, 7, 8, 9, 10, 10.5};
-    double OMEGA_V[10];
 
-    for (int i = 0; i < 10; i++){
-
-        OMEGA_V[i] =V_INF*TIP_SPEED_RATIO_VECTOR[i]/R; 
-
+    for (int i = 0; i < TSR_SIZE; i++){
+        OMEGA_VECTOR[i] = V_INF*TIP_SPEED_RATIO_VECTOR[i]/R;
     }
 
-    Output **SOLUTION_TIP_SPEED_RATIO_VECTOR = malloc(10*sizeof(Output *));
 
-    for (int i = 0; i < 10; i++){
+    solutions = SOLVE_FOR_ANY_NUMBER_AIRFOILS(d,
+                                              AIRFOIL_NUMBER,
+                                              LINE_NUMBER,
+                                              sizes,
+                                              rho,
+                                              mu,
+                                              TIP_SPEED_RATIO_VECTOR,
+                                              TSR_SIZE,
+                                              OMEGA_VECTOR,
+                                              R,
+                                              twist,
+                                              B,
+                                              chord,
+                                              radius,
+                                              PITCH,
+                                              coeficients);
 
-        SOLUTION_TIP_SPEED_RATIO_VECTOR[i] = BEM(d.ARQ_NUMBER, LINE_NUMBER, d.airfoils[0].arq_names, sizes[0], rho, mu, TIP_SPEED_RATIO_VECTOR[i], OMEGA_V[i], R, twist[0], B, chord[0], radius[0], PITCH, coeficients[0]);
-
-    }
-
-    
-    double T_V[10];
-    double M_V[10];
-    double dT_V = 0;
-    double dM_V = 0;
-    double P_V[10];
-    double Cp_V[10];
-    double Ct_V[10];
-
-
-    for (int j = 0; j < 10; j++){
-
-        for (int i = 0; i < sizes[0]; i++){
-
-            dT_V = 4*M_PI*rho*pow(V_INF, 2)*SOLUTION_TIP_SPEED_RATIO_VECTOR[j][i].a*(1-SOLUTION_TIP_SPEED_RATIO_VECTOR[j][i].a)*SOLUTION_TIP_SPEED_RATIO_VECTOR[j][i].F*dr[i]*radius[0][i];
-            dM_V = 4*M_PI*pow(radius[0][i], 3)*rho*V_INF*OMEGA_V[j]*(1-SOLUTION_TIP_SPEED_RATIO_VECTOR[j][i].a)*SOLUTION_TIP_SPEED_RATIO_VECTOR[j][i].al*SOLUTION_TIP_SPEED_RATIO_VECTOR[j][i].F*dr[i];
-            M_V[j] = M_V[j] + dM_V;
-            T_V[j] = T_V[j] + dT_V;
-
-        }
-    }
-
-    for (int j = 0; j < 10; j++){
-
-        P_V[j] = OMEGA_V[j]*M_V[j];
-        Cp_V[j] = P_V[j]/(0.5*rho*pow(V_INF, 3)*M_PI*pow(R,2));
-        Ct_V[j] = T_V[j]/(0.5*rho*pow(V_INF, 2)*M_PI*pow(R,2));
-
-    }
-
-    // BLOCO DE CRIACAO DE GRAFICOS
-
+    dr = DR(AIRFOIL_NUMBER, sizes, radius);
+    Phys = CALCULATE_PHYSICAL_QUANTITIES(TSR_SIZE,
+                                         TIP_SPEED_RATIO_VECTOR,
+                                         sizes, 
+                                         solutions,
+                                         rho,
+                                         V_INF,
+                                         radius,
+                                         dr, 
+                                         AIRFOIL_NUMBER,
+                                         R);
 
 
 
     // CHECA POS PROCESSAMENTO
     
-    for (int j = 0; j < 10; j++){
+    for (int j = 0; j < TSR_SIZE; j++){
 
-        printf("\nTSR[%d] = %f | P[%d] = %f | Cp[%d] = %f | T[%d] = %f | Ct[%d] = %f", j, TIP_SPEED_RATIO_VECTOR[j], j, P_V[j], j, Cp_V[j], j, T_V[j], j, Ct_V[j]);
+        printf("\nTSR[%d] = %f | P[%d] = %f | Cp[%d] = %f | T[%d] = %f | Ct[%d] = %f", j, TIP_SPEED_RATIO_VECTOR[j], j, Phys.P[j], j, Phys.Cp[j], j, Phys.T[j], j, Phys.Ct[j]);
+
     }
 
 }

@@ -4,7 +4,7 @@
 #include <math.h>
 
 
-void DR(int AIRFOIL_NUMBER, int *sizes, double **radius){
+double **DR(int AIRFOIL_NUMBER, int *sizes, double **radius){
     
     printf("\nEntrou na funcao");
 
@@ -16,12 +16,8 @@ void DR(int AIRFOIL_NUMBER, int *sizes, double **radius){
 
     for (int i = 0; i < AIRFOIL_NUMBER; i++){
 
-        if (i == 0){
-            RADIUS_WITH_ZERO[i] = malloc((sizes[i]+1) * sizeof(double));
-        } else {
+        RADIUS_WITH_ZERO[i] = malloc((sizes[i]+1) * sizeof(double));
 
-            RADIUS_WITH_ZERO[i] = malloc((sizes[i]) * sizeof(double));
-        }
     }
 
     for (int i = 0; i < AIRFOIL_NUMBER; i++){
@@ -32,40 +28,81 @@ void DR(int AIRFOIL_NUMBER, int *sizes, double **radius){
 
     RADIUS_WITH_ZERO[0][0] = 0;
 
-    int k = 0;
+    double LAST_VALUE = 0;
+
+    printf("\nAlocou tudo na funcao");
 
     for (int j = 0; j < AIRFOIL_NUMBER; j++){ 
 
         for (int i = 0; i < sizes[j]; i++) {
 
-            if (k == 0){
+            printf("\nEntrou nos fors");
 
-                RADIUS_WITH_ZERO[j][i+1] = radius[j][i];
+            if (i == sizes[j] - 1){
 
-            } else {
+                LAST_VALUE = radius[j][i];
 
-                RADIUS_WITH_ZERO[j][i] = radius[j][i];
+                if (j < AIRFOIL_NUMBER - 1){
+
+                    RADIUS_WITH_ZERO[j+1][0] = LAST_VALUE;
+
+                }
+
             }
 
-            k++;
+            RADIUS_WITH_ZERO[j][i+1] = radius[j][i];
+
+            printf("\nTESTE");
+            printf("RADIUS_WITH_ZERO[%d][%d] = %f", j, i, RADIUS_WITH_ZERO[j][i]);
+
+
+            //if (k == 0){
+
+            //    RADIUS_WITH_ZERO[j][i+1] = radius[j][i];
+
+            //} else {
+
+            //    RADIUS_WITH_ZERO[j][i] = radius[j][i];
+            //}
+
         }
     }
+
 
     for (int j = 0; j < AIRFOIL_NUMBER; j++){
 
-        if (j == 0){
-            for (int i = 0; i < sizes[j]+1; i++) {
-                printf("\nRADIUS[%d][%d] = %f", j, i, RADIUS_WITH_ZERO[j][i]);
+        for (int i = 0; i < sizes[j]; i++){
 
-            }
-        } else{
-            for (int i = 0; i < sizes[j]; i++) {
-                printf("\nRADIUS[%d][%d] = %f", j, i, RADIUS_WITH_ZERO[j][i]);
+            dr[j][i] = RADIUS_WITH_ZERO[j][i+1] - RADIUS_WITH_ZERO[j][i];
 
-            }
         }
 
     }
+
+
+
+
+    // CHECK
+    for (int j = 0; j < AIRFOIL_NUMBER; j++){
+
+
+        for (int i = 0; i < sizes[j]+1; i++) {
+            printf("\nRADIUS[%d][%d] = %f", j, i, RADIUS_WITH_ZERO[j][i]);
+
+        }
+    }
+
+
+    // CHECK
+    for (int j = 0; j < AIRFOIL_NUMBER; j++){
+
+
+        for (int i = 0; i < sizes[j]; i++) {
+            printf("\ndr[%d][%d] = %f", j, i, dr[j][i]);
+
+        }
+    }
+    return dr;
 }
 
 
