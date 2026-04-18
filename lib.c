@@ -1,7 +1,7 @@
 #include <math.h>
 #include "lib.h"
 #include <stdbool.h>
-
+#define _USE_MATH_DEFINES
 
 double V_from_TSR(double TSR, double R, double OMEGA){
     return OMEGA*R/TSR;

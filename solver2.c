@@ -42,28 +42,58 @@ void check_BEM(Output *sol, int radius_length){
 }
 
 
-void GRAPHIC_NAME(char name[], int size){
+void GRAPHIC_NAME(char name[]){
     printf("DIGITE O NOME DO GRAFICO: ");
-    fgets(name, size, stdin);
-    name[strcspn(name, "\n")] = '\0';
+    scanf("%s", name);
 }
 
 
-//void CREATE_GRAPHICS(char GNAME[]){
-//    plsdev("svg");
-//    snprintf(GNAME, sizeof(GNAME),
-//         "%s.svg",
-//         GNAME);
-//    plsfnam(GNAME);
-//    plscolbg(255, 255, 255);
-//    plscol0(1, 0, 0, 0);
-//    plssub(2, 1);
-//    plinit();
-//
-//    PLFLT x[];
-//    PLFLT Cp_Graphic[];
-//    PLFLT Ct_Graphic[];
-//}
+void CREATE_GRAPHICS(int VECTOR_SIZE, char GNAME[], double *x, double *y, char X_TITLE[], char Y_TITLE[]){
+
+    char filename[256];
+    snprintf(filename, sizeof(filename),
+         "%s.svg",
+         GNAME);
+    printf("\nSalvando arquivo: %s\n", filename);
+    plsdev("svg");
+    plsfnam(filename);
+    plscolbg(255, 255, 255);
+    plscol0(1, 0, 0, 0);
+    plssub(1, 1);
+    plinit();
+
+    PLFLT X_G[VECTOR_SIZE];
+    PLFLT Y_G[VECTOR_SIZE];
+    double MAX_Y = 0;
+    double MIN_Y = 0;
+
+    // PASSA OS VALORES DE DOUBLE
+    // PARA A VARIAVEL PROPRIA
+    // DO GRAFICO
+    for (int i = 0; i < VECTOR_SIZE; i++){
+        X_G[i] = x[i];
+        Y_G[i] = y[i]; 
+
+        // PEGA O VALOR MAX
+        // DO VETOR Y
+        if (Y_G[i] > MAX_Y){
+            MAX_Y = Y_G[i];
+        }
+
+
+        // PEGA O VALOR MIN
+        // DO VETOR Y
+        if (Y_G[i] < MIN_Y){
+            MIN_Y = Y_G[i];
+        }
+    }
+
+    plenv(X_G[0]-1, X_G[VECTOR_SIZE-1]+1, MIN_Y, MAX_Y, 0, 0);
+    pllab(X_TITLE, Y_TITLE, "");
+    plline(VECTOR_SIZE, X_G, Y_G);
+    plend();
+
+}
 
 
 Output ***SOLVE_FOR_ANY_NUMBER_AIRFOILS(Data d, 
@@ -271,17 +301,37 @@ PhysicalQuantities CALCULATE_PHYSICAL_QUANTITIES(int TIP_SPEED_RATIO_VECTOR_SIZE
 
 }
 
+// LE A VELOCIDADE INFINITA
+void READ_V_INF(double *V_INF){
+    printf("DIGITE A VELOCIDADE INFINITA: ");
+    scanf("%lf", V_INF);
+}
+
+// LE O PITCH
+// EM GRAUS
+void READ_PITCH(double *PITCH){
+    printf("DIGITE O PITCH EM GRAUS: ");
+    scanf("%lf", PITCH);
+}
+
+
 int main() {
 
 
     // BLOCO PARA LER 
     // VARIAVEIS DO CONSOLE
 
+    int LINE_NUMBER = 80;
     int SIZE = 20;
     char GNAME[SIZE];
+    double V_INF = 10.3;
+    double PITCH = 0;
 
-    GRAPHIC_NAME(GNAME, SIZE);
 
+    //READ_V_INF(&V_INF);
+    //READ_PITCH(&PITCH);
+
+    //PITCH = PITCH*180/M_PI;
 
     Data d;
 
@@ -337,15 +387,10 @@ int main() {
         twist[i] = realloc(twist[i], (k)*sizeof(double));
     }
 
-    //check(d, AIRFOIL_NUMBER, sizes, radius, chord, twist);
+    // check(d, AIRFOIL_NUMBER, sizes, radius, chord, twist);
 
-    double TIP_SPEED_RATIO = 6;
-    double V_INF = 10.3;
-    double OMEGA = (V_INF*TIP_SPEED_RATIO)/R;
-    double PITCH = 0;
-    int LINE_NUMBER = 78;
-
-    //PROXIMO PASSO É IMPLEMENTACAO DO BEM
+    // PROXIMO PASSO É IMPLEMENTACAO DO BEM
+    // IMPLEMENTACAO DO BEM
     
     Coeficients ***coeficients = malloc(AIRFOIL_NUMBER*d.ARQ_NUMBER*sizeof(Coeficients *));
 
@@ -416,6 +461,49 @@ int main() {
         printf("\nTSR[%d] = %f | P[%d] = %f | Cp[%d] = %f | T[%d] = %f | Ct[%d] = %f", j, TIP_SPEED_RATIO_VECTOR[j], j, Phys.P[j], j, Phys.Cp[j], j, Phys.T[j], j, Phys.Ct[j]);
 
     }
+
+    // GRAFICO
+    char X_TITLE[20];
+    char Y_TITLE[20];
+    int answer = 10;
+    while (answer != 0){
+
+        printf("\nQual grafico deseja criar?");
+        printf("\n1 - Cp");
+        printf("\n2 - Ct");
+        printf("\n3 - P");
+        printf("\nDigite 0 para sair: ");
+        scanf("%d", &answer);
+
+
+        switch (answer){
+
+            case 1:
+                GRAPHIC_NAME(GNAME);
+                strcpy(X_TITLE, "TSR");
+                strcpy(Y_TITLE, "Cp");
+                CREATE_GRAPHICS(TSR_SIZE, GNAME, TIP_SPEED_RATIO_VECTOR, Phys.Cp, X_TITLE, Y_TITLE);
+                break;
+
+            case 2:
+                GRAPHIC_NAME(GNAME);
+                strcpy(X_TITLE, "TSR");
+                strcpy(Y_TITLE, "Ct");
+                CREATE_GRAPHICS(TSR_SIZE, GNAME, TIP_SPEED_RATIO_VECTOR, Phys.Ct, X_TITLE, Y_TITLE);
+                break;
+
+            case 3:
+                GRAPHIC_NAME(GNAME);
+                strcpy(X_TITLE, "TSR");
+                strcpy(Y_TITLE, "P");
+                CREATE_GRAPHICS(TSR_SIZE, GNAME, TIP_SPEED_RATIO_VECTOR, Phys.P, X_TITLE, Y_TITLE);
+                break;
+            case 0:
+                break;
+        }
+    }
+
+
 
 }
 
