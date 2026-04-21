@@ -38,4 +38,8 @@ double K_spera(double F, double phi, double sigma, double CN);
 
 double spera_factor(double ac, double a, double F, double phi, double CN, double sigma);
 
+double buhl_calculation_for_turbulent_wake_state(double F, double dCT);
+
+double buhl_dCT(double sigma, double a, double CL, double CD, double phi);
+
 #endif

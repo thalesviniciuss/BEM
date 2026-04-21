@@ -1,6 +1,7 @@
 #include "BEM.h"
 #include "parser.h"
 #include "interpolator.h"
+#include "comparison.h"
 #include <string.h>
 #include <stdlib.h>
 #include <stdio.h>
@@ -41,14 +42,15 @@ void check_BEM(Output *sol, int radius_length){
     
 }
 
-
 void GRAPHIC_NAME(char name[]){
     printf("DIGITE O NOME DO GRAFICO: ");
     scanf("%s", name);
 }
 
-
-void CREATE_GRAPHICS(int VECTOR_SIZE, char GNAME[], double *x, double *y, char X_TITLE[], char Y_TITLE[]){
+void CREATE_GRAPHICS(int VECTOR_SIZE, char GNAME[],
+                     double *x, double *y,
+                     char X_TITLE[], char Y_TITLE[],
+                     double *comparison_x, double *comparison_y, int comparison_size){
 
     char filename[256];
     snprintf(filename, sizeof(filename),
@@ -64,12 +66,19 @@ void CREATE_GRAPHICS(int VECTOR_SIZE, char GNAME[], double *x, double *y, char X
 
     PLFLT X_G[VECTOR_SIZE];
     PLFLT Y_G[VECTOR_SIZE];
+    PLFLT X_COMPARISON[comparison_size];
+    PLFLT Y_COMPARISON[comparison_size];
     double MAX_Y = 0;
     double MIN_Y = 0;
 
     // PASSA OS VALORES DE DOUBLE
     // PARA A VARIAVEL PROPRIA
     // DO GRAFICO
+    for (int i = 0; i < comparison_size; i++){
+        X_COMPARISON[i] = comparison_x[i];
+        Y_COMPARISON[i] = comparison_y[i];
+    }
+    
     for (int i = 0; i < VECTOR_SIZE; i++){
         X_G[i] = x[i];
         Y_G[i] = y[i]; 
@@ -87,12 +96,27 @@ void CREATE_GRAPHICS(int VECTOR_SIZE, char GNAME[], double *x, double *y, char X
             MIN_Y = Y_G[i];
         }
     }
+    
+    for (int i = 0; i < comparison_size; i++){
 
-    plenv(X_G[0]-1, X_G[VECTOR_SIZE-1]+1, MIN_Y, MAX_Y, 0, 0);
+        if (Y_COMPARISON[i] > MAX_Y){
+            MAX_Y = Y_COMPARISON[i];
+        }
+
+
+        // PEGA O VALOR MIN
+        // DO VETOR Y
+        if (Y_COMPARISON[i] < MIN_Y){
+            MIN_Y = Y_COMPARISON[i];
+        }
+    }
+    // Y_MAX = 1.4 APENAS PARA TESTE
+    // VOLTAR PARA MAX_Y DEPOIS
+    plenv(X_G[0]-1, X_G[VECTOR_SIZE-1]+1, MIN_Y, MAX_Y+0.2, 0, 0);
     pllab(X_TITLE, Y_TITLE, "");
+    plpoin(comparison_size, X_COMPARISON, Y_COMPARISON, 9);
     plline(VECTOR_SIZE, X_G, Y_G);
     plend();
-
 }
 
 
@@ -211,6 +235,7 @@ PhysicalQuantities CALCULATE_PHYSICAL_QUANTITIES(int TIP_SPEED_RATIO_VECTOR_SIZE
     double *OMEGA;
     double dT = 0;
     double dM = 0;
+    double ac = 0.2;
 
     T = malloc(TIP_SPEED_RATIO_VECTOR_SIZE * sizeof(double));
     M = malloc(TIP_SPEED_RATIO_VECTOR_SIZE * sizeof(double));
@@ -223,7 +248,6 @@ PhysicalQuantities CALCULATE_PHYSICAL_QUANTITIES(int TIP_SPEED_RATIO_VECTOR_SIZE
     Ct = malloc(TIP_SPEED_RATIO_VECTOR_SIZE * sizeof(double));
 
     for (int j = 0; j < TIP_SPEED_RATIO_VECTOR_SIZE; j++){
-
         T_s[j] = malloc(AIRFOIL_NUMBER * sizeof(double));
         M_s[j] = malloc(AIRFOIL_NUMBER * sizeof(double));
     }
@@ -231,9 +255,7 @@ PhysicalQuantities CALCULATE_PHYSICAL_QUANTITIES(int TIP_SPEED_RATIO_VECTOR_SIZE
     OMEGA = malloc(TIP_SPEED_RATIO_VECTOR_SIZE * sizeof(double));
 
     for (int i = 0; i < TIP_SPEED_RATIO_VECTOR_SIZE; i++){
-
         OMEGA[i] =V_INF*TIP_SPEED_RATIO_VECTOR[i]/R; 
-
     }
 
      
@@ -262,7 +284,16 @@ PhysicalQuantities CALCULATE_PHYSICAL_QUANTITIES(int TIP_SPEED_RATIO_VECTOR_SIZE
 
             for (int i = 0; i < sizes[j]; i++){
 
-                dT = 4*M_PI*rho*pow(V_INF, 2)*solutions[k][j][i].a*(1-solutions[k][j][i].a)*solutions[k][j][i].F*dr[j][i]*radius[j][i];
+                double CT_i = 0;
+                if (solutions[k][j][i].a < ac){
+                    CT_i = 4*solutions[k][j][i].a*(1-solutions[k][j][i].a)*solutions[k][j][i].F;
+                    dT = 0.5*rho*pow(V_INF, 2)*CT_i*2*M_PI*radius[j][i]*dr[j][i];
+                    //dT = 4*M_PI*rho*pow(V_INF, 2)*solutions[k][j][i].a*(1-solutions[k][j][i].a)*solutions[k][j][i].F*dr[j][i]*radius[j][i];
+                } else if (solutions[k][j][i].a >= ac){
+                    CT_i = 4*(pow(ac, 2) + (1 - 2*ac)*solutions[k][j][i].a)*solutions[k][j][i].F;
+                    //CT_i = (8.0/9.0)+(4.0*solutions[k][j][i].F - 40.0/9.0)*solutions[k][j][i].a + (50.0/9.0 - 4.0*solutions[k][j][i].F)*pow(solutions[k][j][i].a, 2);
+                    dT = 0.5*rho*pow(V_INF, 2)*CT_i*2*M_PI*radius[j][i]*dr[j][i];
+                }
                 dM = 4*M_PI*pow(radius[j][i], 3)*rho*V_INF*OMEGA[k]*(1-solutions[k][j][i].a)*solutions[k][j][i].al*solutions[k][j][i].F*dr[j][i];
                 M_s[k][j] = M_s[k][j] + dM;
                 T_s[k][j] = T_s[k][j] + dT;
@@ -411,12 +442,22 @@ int main() {
     double **dr;
     PhysicalQuantities Phys;
 
-    int TSR_SIZE = 10;
+    int TSR_SIZE = 20;
     double *OMEGA_VECTOR;
+    double *TIP_SPEED_RATIO_VECTOR;
 
     OMEGA_VECTOR = malloc(TSR_SIZE * sizeof(double));
+    TIP_SPEED_RATIO_VECTOR = malloc(TSR_SIZE * sizeof(double));
 
-    double TIP_SPEED_RATIO_VECTOR[10] = {2, 3, 4, 5, 6, 7, 8, 9, 10, 10.5};
+    TIP_SPEED_RATIO_VECTOR[0] = 1;
+
+    //double TIP_SPEED_RATIO_VECTOR[10] = {2, 3, 4, 5, 6, 7, 8, 9, 10, 10.5};
+
+    for (int i = 1; i < TSR_SIZE - 1; i++){
+        TIP_SPEED_RATIO_VECTOR[i] = TIP_SPEED_RATIO_VECTOR[0] + i*0.5;
+    }
+
+    TIP_SPEED_RATIO_VECTOR[TSR_SIZE - 1] = 11;
 
     for (int i = 0; i < TSR_SIZE; i++){
         OMEGA_VECTOR[i] = V_INF*TIP_SPEED_RATIO_VECTOR[i]/R;
@@ -466,6 +507,8 @@ int main() {
     char X_TITLE[20];
     char Y_TITLE[20];
     int answer = 10;
+    ComparisonPoints C;
+    C = comparison_points();
     while (answer != 0){
 
         printf("\nQual grafico deseja criar?");
@@ -482,21 +525,21 @@ int main() {
                 GRAPHIC_NAME(GNAME);
                 strcpy(X_TITLE, "TSR");
                 strcpy(Y_TITLE, "Cp");
-                CREATE_GRAPHICS(TSR_SIZE, GNAME, TIP_SPEED_RATIO_VECTOR, Phys.Cp, X_TITLE, Y_TITLE);
+                CREATE_GRAPHICS(TSR_SIZE, GNAME, TIP_SPEED_RATIO_VECTOR, Phys.Cp, X_TITLE, Y_TITLE, C.Lambda_Cp, C.Cp, C.size_Cp);
                 break;
 
             case 2:
                 GRAPHIC_NAME(GNAME);
                 strcpy(X_TITLE, "TSR");
                 strcpy(Y_TITLE, "Ct");
-                CREATE_GRAPHICS(TSR_SIZE, GNAME, TIP_SPEED_RATIO_VECTOR, Phys.Ct, X_TITLE, Y_TITLE);
+                CREATE_GRAPHICS(TSR_SIZE, GNAME, TIP_SPEED_RATIO_VECTOR, Phys.Ct, X_TITLE, Y_TITLE, C.Lambda_Ct, C.Ct, C.size_Ct);
                 break;
 
             case 3:
                 GRAPHIC_NAME(GNAME);
                 strcpy(X_TITLE, "TSR");
                 strcpy(Y_TITLE, "P");
-                CREATE_GRAPHICS(TSR_SIZE, GNAME, TIP_SPEED_RATIO_VECTOR, Phys.P, X_TITLE, Y_TITLE);
+                CREATE_GRAPHICS(TSR_SIZE, GNAME, TIP_SPEED_RATIO_VECTOR, Phys.P, X_TITLE, Y_TITLE, C.Lambda_P, C.P, C.size_P);
                 break;
             case 0:
                 break;

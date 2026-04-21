@@ -104,3 +104,21 @@ double spera_factor(double ac, double a, double F, double phi, double CN, double
 
     return 0.5*(A + B - E);
 }
+
+double buhl_calculation_for_turbulent_wake_state(double F, double dCT){
+    double A = 18*F-20;
+    double B = sqrt(dCT*(50-36*F)+12*F*(3*F-4));
+    double C = 36*F-50;
+    return (A - 3*B)/C;
+
+}
+
+double buhl_dCT(double sigma, double a, double CL, double CD, double phi){
+
+    double A = sigma*pow(1-a, 2);
+    double B = CL*cos(phi)+CD*sin(phi);
+    double C = pow(sin(phi), 2);
+    return A*B/C;
+
+}
+

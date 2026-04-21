@@ -59,7 +59,7 @@ Data parser(){
     double *twist2 = malloc(100*sizeof(double));
     Airfoil *airfoils2 = NULL;
 
-    arq = fopen ("config.txt", "r"); // para leitura
+    arq = fopen("config.txt", "r"); // para leitura
 
     int a = 0;
 

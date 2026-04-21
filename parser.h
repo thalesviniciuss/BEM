@@ -26,7 +26,7 @@ typedef struct {
     char *ARQ_NAMES;
 } Data;
 
-
+void remover_dois_pontos(char str[]);
 
 Data parser();
 
